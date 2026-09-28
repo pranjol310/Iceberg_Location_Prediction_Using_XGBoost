@@ -1,1 +1,11 @@
 
+Iceberg data is taken from - BYU Antarctic Iceberg Tracking Database (1978–present, satellite scatterometer): https://www.scp.byu.edu/data/iceberg/database1.html
+        the consolidated database data and statistical database data were downlaoded and merged into 1 file - tracks.csv by using make_tracks.py
+
+Wind and sea surface temperature data was taken from https://cds.climate.copernicus.eu/ from the dataset page - "ERA5 hourly data on single levels from 1940 to present"
+        here data only for the year 2019 has been taken. data for more years can be taken for better modle training 
+        file named as - era5_2019.nc
+Current and sea ice data was taken from - https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description  .   again data for the year 2019 has been taken
+        file named as - glorys_2019.nc
+
+All these 3 files were merged into 1 file - training_data.csv - using build_dataset.py
