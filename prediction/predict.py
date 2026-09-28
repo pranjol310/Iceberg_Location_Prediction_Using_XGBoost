@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 from xgboost import XGBRegressor
 
-from train import MODEL_DIR, build_dataset, to_latlon  
+from train import MODEL_DIR, build_dataset, to_km, to_latlon  
 
 
 def load_model(model_dir=MODEL_DIR):
@@ -17,11 +17,32 @@ def load_model(model_dir=MODEL_DIR):
     return model_dx, model_dy, meta["feature_cols"], meta["horizon"]
 
 
-def predict_positions(csv_path, model_dir=MODEL_DIR, iceberg_id=None):
+def compute_prev_columns(df):
+    df = df.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df = df.sort_values(["iceberg_id", "timestamp"]).reset_index(drop=True)
+    g = df.groupby("iceberg_id", sort=False)
+    df["prev1_dx_km"], df["prev1_dy_km"] = to_km(
+        g["latitude"].shift(1), g["longitude"].shift(1), df["latitude"], df["longitude"]
+    )
+    gap = g["timestamp"].diff().dt.days
+    df.loc[gap != 1, ["prev1_dx_km", "prev1_dy_km"]] = float("nan")
+    g = df.groupby("iceberg_id", sort=False)
+    for axis in ["dx", "dy"]:
+        df[f"prev3_{axis}_km"] = g[f"prev1_{axis}_km"].transform(
+            lambda s: s.rolling(3, min_periods=3).mean()
+        )
+    return df
+
+
+def predict_positions(csv_path, model_dir=MODEL_DIR, iceberg_id=None, raw=False):
     model_dx, model_dy, feature_cols, horizon = load_model(model_dir)
 
-    df, _ = build_dataset(csv_path, horizon=horizon)
-    latest = df.groupby("iceberg_id", sort=False).tail(1)     
+    data = pd.read_csv(csv_path, parse_dates=["timestamp"])
+    if raw:
+        data = compute_prev_columns(data)
+    df, _ = build_dataset(data, horizon=horizon)
+    latest = df.groupby("iceberg_id", sort=False).tail(1)     # last known row per iceberg
     if iceberg_id is not None:
         latest = latest[latest["iceberg_id"] == iceberg_id]
         if latest.empty:
@@ -48,11 +69,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="training_data.csv")
     parser.add_argument("--model-dir", default=str(MODEL_DIR))
+    parser.add_argument("--raw", action="store_true",
+                        help="input has no prev1_*/prev3_* columns; compute them from lat/lon")
     parser.add_argument("--iceberg", default=None, help="predict only this iceberg_id")
     parser.add_argument("--output", default=None, help="optional path to save predictions as CSV")
     args = parser.parse_args()
 
-    preds = predict_positions(args.input, args.model_dir, args.iceberg)
+    preds = predict_positions(args.input, args.model_dir, args.iceberg, args.raw)
     pd.set_option("display.width", 200)
     print(preds.round(4).to_string(index=False))
     if args.output:
