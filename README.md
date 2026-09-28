@@ -1,5 +1,5 @@
 ```
-**Iceberg Location Prediction Using XGBoost
+Iceberg Location Prediction Using XGBoost
 
 A machine learning project for predicting the location/class of icebergs from input data using the XGBoost algorithm.
 
