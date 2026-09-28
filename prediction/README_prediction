@@ -1,1 +1,13 @@
+To predict for a new iceberg:
 
+Make a CSV with one row per day for that iceberg, using the same columns as the training file, but without the four prev1_* and prev3_* columns. The columns will be:
+iceberg_id,timestamp,latitude,longitude,size_km2,mask,current_speed,current_direction,wind_speed,wind_direction,temperature,sea_ice_concentration
+
+The output gives the predicted lat/lon for the day after the last row. User can also put several icebergs in one file, and each gets its own prediction.
+
+What the user has to supply:
+
+1. At least 4 consecutive daily rows. That's the minimum for prev3_* to be filled in. About 8 or more days is better, because the 7-day average feature also needs history.
+2. Consecutive days with no gaps. If a date is skipped, the displacement for that day is left empty rather than guessed.
+3. Current, wind, temperature and sea-ice concentration
+4. size_km2 and mask. 
